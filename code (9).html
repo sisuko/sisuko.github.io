@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homenaje a Larra - Depurando GLB Zorrilla</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; }
+        canvas { display: block; cursor: pointer; }
+        .info { /* Estilos Info sin cambios */ }
+        #zorrillaAudio { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="info">
+    Entierro de Larra - Depurando modelo GLB.<br>
+    Haz clic sobre Zorrilla (modelo o cubo) para escuchar.<br>
+    Usa el ratón para mover la cámara.
+</div>
+
+<!-- Elemento de Audio (sin cambios) -->
+<audio id="zorrillaAudio" src="zorrilla_poema.mp3" preload="auto"></audio>
+<!-- ¡¡¡ IMPORTANTE: Reemplaza "zorrilla_poema.mp3" con tu archivo de sonido !!! -->
+
+<!-- Import Map y Shims -->
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<!-- Script Principal (Módulo) -->
+<script type="module">
+
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    // --- Configuración Básica, Iluminación, Suelo, Tumba, Niebla (SIN CAMBIOS) ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 30, 150);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 250);
+    camera.position.set(2, 10, 20); camera.lookAt(0, 1, 0);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.target.set(0, 1.5, 0); controls.maxDistance = 120;
+    const ambientLight = new THREE.AmbientLight(0x606060); scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9); directionalLight.position.set(20, 40, 30); directionalLight.castShadow = true; /* Sombra config */ directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 120; directionalLight.shadow.camera.left = -70; directionalLight.shadow.camera.right = 70; directionalLight.shadow.camera.top = 70; directionalLight.shadow.camera.bottom = -70; scene.add(directionalLight);
+    const groundGeometry = new THREE.PlaneGeometry(200, 200); const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x556B2F, roughness: 0.9, metalness: 0.1 }); const ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    const graveGeometry = new THREE.BoxGeometry(3, 0.5, 1.5); const graveMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 }); const grave = new THREE.Mesh(graveGeometry, graveMaterial); grave.position.set(0, 0.25, 0); grave.castShadow = true; grave.receiveShadow = true; scene.add(grave);
+
+    // --- FUNCIÓN PARA CREAR PERSONAS (ASISTENTES - SIN CAMBIOS) ---
+    function createPerson(options = {}) { /* ... Mismo código createPerson para asistentes ... */ const defaults = { isZorrilla: false, pose: 'standing', minHeight: 1.5, maxHeight: 1.9, skinToneBase: [0.8, 0.6, 0.4], skinToneVariance: 0.1, clothingColorBase: [0.1, 0.1, 0.1], clothingColorVariance: 0.1 }; const config = { ...defaults, ...options }; const personGroup = new THREE.Group(); const height = config.minHeight + Math.random() * (config.maxHeight - config.minHeight); const headRatio = 0.15, torsoRatio = 0.35, legRatio = 1 - headRatio - torsoRatio; const headRadius = (height * headRatio) / 2; const torsoHeight = height * torsoRatio; const legHeight = height * legRatio; const bodyWidth = height * 0.2 * (0.8 + Math.random() * 0.4); const armWidth = bodyWidth * 0.25; const legWidth = bodyWidth * 0.3; const skinTone = new THREE.Color(); skinTone.setRGB( config.skinToneBase[0] + (Math.random() - 0.5) * 2 * config.skinToneVariance, config.skinToneBase[1] + (Math.random() - 0.5) * 2 * config.skinToneVariance, config.skinToneBase[2] + (Math.random() - 0.5) * 2 * config.skinToneVariance ); const clothingColor1 = new THREE.Color(); clothingColor1.setRGB( config.clothingColorBase[0] + (Math.random()) * config.clothingColorVariance, config.clothingColorBase[1] + (Math.random()) * config.clothingColorVariance, config.clothingColorBase[2] + (Math.random()) * config.clothingColorVariance ); const clothingColor2 = new THREE.Color(); clothingColor2.setRGB( config.clothingColorBase[0] + (Math.random()) * config.clothingColorVariance, config.clothingColorBase[1] + (Math.random()) * config.clothingColorVariance, config.clothingColorBase[2] + (Math.random()) * config.clothingColorVariance ); const skinMaterial = new THREE.MeshStandardMaterial({ color: skinTone, roughness: 0.8 }); const clothingMaterial1 = new THREE.MeshStandardMaterial({ color: clothingColor1, roughness: 0.85, metalness: 0.1 }); const clothingMaterial2 = new THREE.MeshStandardMaterial({ color: clothingColor2, roughness: 0.85, metalness: 0.1 }); const headGeometry = new THREE.SphereGeometry(headRadius, 12, 10); const torsoGeometry = new THREE.BoxGeometry(bodyWidth, torsoHeight, bodyWidth * 0.7); const armGeometry = new THREE.CylinderGeometry(armWidth/2, armWidth/2, torsoHeight * 0.9, 8); const legGeometry = new THREE.CylinderGeometry(legWidth/2, legWidth/2, legHeight, 8); const head = new THREE.Mesh(headGeometry, skinMaterial); head.position.y = legHeight + torsoHeight + headRadius * 0.8; head.castShadow = true; head.receiveShadow = true; personGroup.add(head); const torso = new THREE.Mesh(torsoGeometry, clothingMaterial1); torso.position.y = legHeight + torsoHeight / 2; torso.castShadow = true; torso.receiveShadow = true; personGroup.add(torso); const legL = new THREE.Mesh(legGeometry, clothingMaterial2); legL.position.set(-bodyWidth / 3.5, legHeight / 2, 0); legL.castShadow = true; legL.receiveShadow = true; personGroup.add(legL); const legR = new THREE.Mesh(legGeometry, clothingMaterial2); legR.position.set(bodyWidth / 3.5, legHeight / 2, 0); legR.castShadow = true; legR.receiveShadow = true; personGroup.add(legR); const armL = new THREE.Mesh(armGeometry, clothingMaterial1); const armR = new THREE.Mesh(armGeometry, clothingMaterial1); armL.castShadow = true; armL.receiveShadow = true; armR.castShadow = true; armR.receiveShadow = true; personGroup.add(armL); personGroup.add(armR); armL.position.set(-bodyWidth / 2 - armWidth / 2, legHeight + torsoHeight * 0.55, 0); armR.position.set(bodyWidth / 2 + armWidth / 2, legHeight + torsoHeight * 0.55, 0); armL.rotation.z = THREE.MathUtils.degToRad(10) + (Math.random() - 0.5) * 0.2; armR.rotation.z = THREE.MathUtils.degToRad(-10) + (Math.random() - 0.5) * 0.2; return personGroup; }
+
+    // --- *** CARGAR MODELO ZORRILLA (CON DEPURACIÓN Y FALLBACK) *** ---
+    let zorrilla; // Variable para guardar la referencia al modelo o al fallback
+    const loader = new GLTFLoader();
+    const modelPath = 'zorrilla_modelo.glb'; // <-- ¡¡¡ REVISA ESTA RUTA !!! (Ej: 'models/zorrilla.glb')
+
+    console.log(`Intentando cargar modelo desde: ${modelPath}`);
+
+    loader.load(
+        modelPath,
+        function ( gltf ) { // Éxito
+            console.log("¡Éxito! Modelo GLB cargado:", gltf);
+            zorrilla = gltf.scene;
+            zorrilla.name = "ZorrillaGLB";
+
+            // --- Ajustes Iniciales (Prueba SIN tocar esto primero si no aparece) ---
+             zorrilla.position.set(0, 0, 2.5); // Posición base
+             // zorrilla.rotation.y = Math.PI; // Descomenta para rotar 180º si es necesario
+             zorrilla.scale.set(1, 1, 1); // <-- AJUSTA ESTA ESCALA si es muy grande/pequeño
+            // ---------------------------------------------------------------------
+
+            console.log(`Posición Zorrilla: ${zorrilla.position.x}, ${zorrilla.position.y}, ${zorrilla.position.z}`);
+            console.log(`Escala Zorrilla: ${zorrilla.scale.x}, ${zorrilla.scale.y}, ${zorrilla.scale.z}`);
+
+            zorrilla.traverse( function ( child ) {
+                if ( child.isMesh ) {
+                    console.log("Activando sombras para malla:", child.name);
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                     // Intenta forzar un material básico si hay problemas de textura/material
+                     // child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Rojo para depurar
+                }
+            });
+
+            scene.add( zorrilla );
+            console.log("Modelo Zorrilla añadido a la escena.");
+
+        },
+        function ( xhr ) { // Progreso
+            console.log( `Cargando modelo: ${ ( xhr.loaded / xhr.total * 100 ).toFixed(2) }%` );
+        },
+        function ( error ) { // Error
+            console.error( '¡ERROR AL CARGAR EL MODELO GLB!', error );
+            console.log("Creando figura de fallback (cubo rojo) para Zorrilla.");
+            // --- Fallback: Crear un cubo si el modelo no carga ---
+            const fallbackGeometry = new THREE.BoxGeometry(0.8, 1.8, 0.8); // Tamaño aproximado persona
+            const fallbackMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Rojo brillante
+            zorrilla = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+            zorrilla.position.set(0, 1.8 / 2, 2.5); // Posicionar el cubo donde debería estar Zorrilla
+            zorrilla.name = "ZorrillaFallbackCube";
+            zorrilla.castShadow = true;
+            zorrilla.receiveShadow = true;
+            scene.add(zorrilla);
+            // -----------------------------------------------------
+        }
+    );
+
+
+    // --- Crear Asistentes (SIN CAMBIOS) ---
+    const numAttendees = 35; const crowdRadius = 18; const innerRadius = 5;
+    for (let i = 0; i < numAttendees; i++) { const attendee = createPerson(); const angle = Math.random() * Math.PI * 2; const radius = innerRadius + Math.random() * (crowdRadius - innerRadius); const x = Math.cos(angle) * radius; const z = Math.sin(angle) * radius; attendee.position.set(x, 0, z); const randomLookX = 0 + (Math.random() - 0.5) * 2; const randomLookZ = 2.5 + (Math.random() - 0.5) * 2; attendee.lookAt(randomLookX, attendee.position.y + 1.6, randomLookZ); scene.add(attendee); }
+
+
+    // --- Cipreses (Función y Bucle SIN CAMBIOS) ---
+    function createCypress() { const height = 8 + Math.random() * 10; const radius = 0.5 + Math.random() * 0.4; const geometry = new THREE.ConeGeometry(radius, height, 12, 1); const material = new THREE.MeshStandardMaterial({ color: 0x224422, roughness: 0.9 }); const cypress = new THREE.Mesh(geometry, material); cypress.castShadow = true; cypress.receiveShadow = true; cypress.position.y = height / 2; return cypress; }
+    const numCypresses = 45; const treeAreaRadius = 80; const treeInnerRadius = 15;
+    for (let i = 0; i < numCypresses; i++) { const cypress = createCypress(); let x, z, validPosition; do { const angle = Math.random() * Math.PI * 2; const radius = treeInnerRadius + Math.random() * (treeAreaRadius - treeInnerRadius); x = Math.cos(angle) * radius; z = Math.sin(angle) * radius; validPosition = (x*x + z*z) > (innerRadius*innerRadius + 5); } while (!validPosition); cypress.position.x = x; cypress.position.z = z; scene.add(cypress); }
+
+
+    // --- Lápidas (Función y Bucle SIN CAMBIOS) ---
+    function createGravestone() { const width = 0.6 + Math.random() * 0.4; const height = 1 + Math.random() * 1.2; const depth = 0.2 + Math.random() * 0.1; const geometry = new THREE.BoxGeometry(width, height, depth); const material = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.8 }); const gravestone = new THREE.Mesh(geometry, material); gravestone.castShadow = true; gravestone.receiveShadow = true; gravestone.position.y = height / 2; return gravestone; }
+    const numGravestones = 70; const stoneAreaRadius = 75; const stoneInnerRadius = 10;
+    for (let i = 0; i < numGravestones; i++) { const gravestone = createGravestone(); let x, z, validPosition; do { const angle = Math.random() * Math.PI * 2; const radius = stoneInnerRadius + Math.random() * (stoneAreaRadius - stoneInnerRadius); x = Math.cos(angle) * radius; z = Math.sin(angle) * radius; validPosition = (x*x + z*z) > (innerRadius*innerRadius + 3); } while (!validPosition); gravestone.position.x = x; gravestone.position.z = z; gravestone.rotation.y = (Math.random() - 0.5) * 0.5; scene.add(gravestone); }
+
+
+    // --- Paredes del Cementerio (SIN CAMBIOS) ---
+    const wallDistance = 90; const wallLength = 180; const wallHeight = 3.5; const wallDepth = 0.5; const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x888877, roughness: 0.9, metalness: 0.05 }); const wallGeometry = new THREE.BoxGeometry(wallLength, wallHeight, wallDepth); const wallZpos = new THREE.Mesh(wallGeometry, wallMaterial); wallZpos.position.set(0, wallHeight / 2, wallDistance); wallZpos.castShadow = true; wallZpos.receiveShadow = true; scene.add(wallZpos); const wallZneg = new THREE.Mesh(wallGeometry, wallMaterial); wallZneg.position.set(0, wallHeight / 2, -wallDistance); wallZneg.castShadow = true; wallZneg.receiveShadow = true; scene.add(wallZneg); const wallXpos = new THREE.Mesh(wallGeometry, wallMaterial); wallXpos.position.set(wallDistance, wallHeight / 2, 0); wallXpos.rotation.y = Math.PI / 2; wallXpos.castShadow = true; wallXpos.receiveShadow = true; scene.add(wallXpos); const wallXneg = new THREE.Mesh(wallGeometry, wallMaterial); wallXneg.position.set(-wallDistance, wallHeight / 2, 0); wallXneg.rotation.y = Math.PI / 2; wallXneg.castShadow = true; wallXneg.receiveShadow = true; scene.add(wallXneg);
+
+
+    // --- LÓGICA DE RAYCASTING Y SONIDO (SIN CAMBIOS) ---
+    const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); const zorrillaAudio = document.getElementById('zorrillaAudio');
+    function onPointerDown( event ) {
+        if (!zorrilla) { console.log("Zorrilla (modelo o fallback) aún no definido."); return; } // Salir si zorrilla no está listo
+        mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1; mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1; raycaster.setFromCamera( mouse, camera );
+        const intersects = raycaster.intersectObject( zorrilla, true ); // Comprueba intersección con lo que sea que esté en 'zorrilla'
+        if ( intersects.length > 0 ) {
+            console.log(`Clic detectado en: ${zorrilla.name}`); // Mostrará ZorrillaGLB o ZorrillaFallbackCube
+            if (zorrillaAudio) { zorrillaAudio.currentTime = 0; zorrillaAudio.play().catch(error => console.error("Error al reproducir audio:", error)); }
+            else { console.error("Elemento de audio 'zorrillaAudio' no encontrado."); }
+        }
+    }
+    renderer.domElement.addEventListener( 'pointerdown', onPointerDown, false );
+
+
+    // --- Animación y Redimensionamiento (SIN CAMBIOS) ---
+    function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    animate();
+
+</script>
+
+</body>
+</html>
