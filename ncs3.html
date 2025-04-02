@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homenaje a Larra - Escena COMPLETA vFinal</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; }
+        canvas { display: block; cursor: pointer; }
+        .info {
+            position: absolute; top: 10px; left: 10px; color: white;
+            background-color: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+            font-family: sans-serif; font-size: 12px; z-index: 10;
+        }
+        #zorrillaAudio { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="info">
+    Entierro de Larra - Escena Completa vFinal.<br>
+    Haz clic sobre Zorrilla (modelo) para escuchar.<br>
+    Usa el ratón para mover la cámara.
+</div>
+
+<!-- Elemento de Audio -->
+<audio id="zorrillaAudio" src="zorrilla_poema.mp3" preload="auto"></audio>
+<!-- ¡¡¡ IMPORTANTE: Reemplaza "zorrilla_poema.mp3" con tu archivo de sonido !!! -->
+
+<!-- Import Map y Shims -->
+<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<!-- Script Principal (Módulo) -->
+<script type="module">
+
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    // =======================================================================
+    // == ¡¡¡ IMPORTANTE !!!                                                ==
+    // == 1. Ejecutar desde servidor web local (http://localhost...).       ==
+    // == 2. Reemplaza 'zorrilla_modelo.glb', 'objeto_tumba.glb',           ==
+    // ==    'suelo_textura.jpg', 'tumba_textura.jpg' y 'zorrilla_poema.mp3'==
+    // ==    con las rutas CORRECTAS a tus archivos.                        ==
+    // =======================================================================
+
+    // --- Configuración Básica ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 30, 150); // Niebla
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 250);
+    camera.position.set(2, 10, 20); camera.lookAt(0, 1, 0);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setPixelRatio( window.devicePixelRatio );
+    document.body.appendChild(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.target.set(0, 1.5, 0); controls.maxDistance = 120;
+    const ambientLight = new THREE.AmbientLight(0x606060); scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9); directionalLight.position.set(20, 40, 30); directionalLight.castShadow = true; /* Sombra config */ directionalLight.shadow.mapSize.width = 1024; directionalLight.shadow.mapSize.height = 1024; directionalLight.shadow.camera.near = 0.5; directionalLight.shadow.camera.far = 120; directionalLight.shadow.camera.left = -70; directionalLight.shadow.camera.right = 70; directionalLight.shadow.camera.top = 70; directionalLight.shadow.camera.bottom = -70; scene.add(directionalLight);
+
+    // --- Cargadores ---
+    const gltfLoader = new GLTFLoader();
+    const textureLoader = new THREE.TextureLoader();
+
+    // --- Suelo con Textura ---
+    const groundPlaneSize = 200; const groundGeometry = new THREE.PlaneGeometry(groundPlaneSize, groundPlaneSize);
+    const groundTexturePath = 'suelo_textura.jpg'; const groundTexture = textureLoader.load(groundTexturePath);
+    groundTexture.wrapS = THREE.RepeatWrapping; groundTexture.wrapT = THREE.RepeatWrapping; const textureRepeats = 50; groundTexture.repeat.set(textureRepeats, textureRepeats); groundTexture.colorSpace = THREE.SRGBColorSpace;
+    const groundMaterial = new THREE.MeshStandardMaterial({ map: groundTexture, roughness: 0.8, metalness: 0.1 }); const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+    // --- Tumba Principal con Textura ---
+    const graveGeometry = new THREE.BoxGeometry(3, 0.5, 1.5);
+    const graveTexturePath = 'tumba_textura.jpg'; const graveTexture = textureLoader.load(graveTexturePath); graveTexture.colorSpace = THREE.SRGBColorSpace;
+    const graveMaterial = new THREE.MeshStandardMaterial({ map: graveTexture, roughness: 0.7, metalness: 0.0 }); const grave = new THREE.Mesh(graveGeometry, graveMaterial);
+    grave.position.set(0, 0.25, 0); grave.castShadow = true; grave.receiveShadow = true; scene.add(grave);
+    const graveTopY = grave.position.y + grave.geometry.parameters.height / 2;
+
+    // --- FUNCIÓN PARA CREAR PERSONAS (ASISTENTES) ---
+    function createPerson(options = {}) { /* ... Mismo código createPerson ... */ const defaults={isZorrilla:!1,pose:"standing",minHeight:1.5,maxHeight:1.9,skinToneBase:[.8,.6,.4],skinToneVariance:.1,clothingColorBase:[.1,.1,.1],clothingColorVariance:.1},config={...defaults,...options},personGroup=new THREE.Group,height=config.minHeight+Math.random()*(config.maxHeight-config.minHeight),headRatio=.15,torsoRatio=.35,legRatio=1-headRatio-torsoRatio,headRadius=height*headRatio/2,torsoHeight=height*torsoRatio,legHeight=height*legRatio,bodyWidth=height*.2*(.8+Math.random()*.4),armWidth=bodyWidth*.25,legWidth=bodyWidth*.3,skinTone=new THREE.Color;skinTone.setRGB(config.skinToneBase[0]+(Math.random()-.5)*2*config.skinToneVariance,config.skinToneBase[1]+(Math.random()-.5)*2*config.skinToneVariance,config.skinToneBase[2]+(Math.random()-.5)*2*config.skinToneVariance);const clothingColor1=new THREE.Color;clothingColor1.setRGB(config.clothingColorBase[0]+Math.random()*config.clothingColorVariance,config.clothingColorBase[1]+Math.random()*config.clothingColorVariance,config.clothingColorBase[2]+Math.random()*config.clothingColorVariance);const clothingColor2=new THREE.Color;clothingColor2.setRGB(config.clothingColorBase[0]+Math.random()*config.clothingColorVariance,config.clothingColorBase[1]+Math.random()*config.clothingColorVariance,config.clothingColorBase[2]+Math.random()*config.clothingColorVariance);const skinMaterial=new THREE.MeshStandardMaterial({color:skinTone,roughness:.8}),clothingMaterial1=new THREE.MeshStandardMaterial({color:clothingColor1,roughness:.85,metalness:.1}),clothingMaterial2=new THREE.MeshStandardMaterial({color:clothingColor2,roughness:.85,metalness:.1}),headGeometry=new THREE.SphereGeometry(headRadius,12,10),torsoGeometry=new THREE.BoxGeometry(bodyWidth,torsoHeight,bodyWidth*.7),armGeometry=new THREE.CylinderGeometry(armWidth/2,armWidth/2,torsoHeight*.9,8),legGeometry=new THREE.CylinderGeometry(legWidth/2,legWidth/2,legHeight,8),head=new THREE.Mesh(headGeometry,skinMaterial);head.position.y=legHeight+torsoHeight+headRadius*.8,head.castShadow=!0,head.receiveShadow=!0,personGroup.add(head);const torso=new THREE.Mesh(torsoGeometry,clothingMaterial1);torso.position.y=legHeight+torsoHeight/2,torso.castShadow=!0,torso.receiveShadow=!0,personGroup.add(torso);const legL=new THREE.Mesh(legGeometry,clothingMaterial2);legL.position.set(-bodyWidth/3.5,legHeight/2,0),legL.castShadow=!0,legL.receiveShadow=!0,personGroup.add(legL);const legR=new THREE.Mesh(legGeometry,clothingMaterial2);legR.position.set(bodyWidth/3.5,legHeight/2,0),legR.castShadow=!0,legR.receiveShadow=!0,personGroup.add(legR);const armL=new THREE.Mesh(armGeometry,clothingMaterial1),armR=new THREE.Mesh(armGeometry,clothingMaterial1);armL.castShadow=!0,armL.receiveShadow=!0,armR.castShadow=!0,armR.receiveShadow=!0,personGroup.add(armL),personGroup.add(armR),armL.position.set(-bodyWidth/2-armWidth/2,legHeight+torsoHeight*.55,0),armR.position.set(bodyWidth/2+armWidth/2,legHeight+torsoHeight*.55,0),armL.rotation.z=THREE.MathUtils.degToRad(10)+(Math.random()-.5)*.2,armR.rotation.z=THREE.MathUtils.degToRad(-10)+(Math.random()-.5)*.2;return personGroup }
+
+    // --- CARGAR MODELOS GLB ---
+    let zorrillaObject; let tombObject;
+    const zorrillaModelPath = 'zorrilla_modelo.glb'; const desiredZorrillaScale = 1.0;
+    gltfLoader.load( zorrillaModelPath, gltf => { /* ... código carga zorrilla ... */ console.log("Modelo GLB Zorrilla cargado."); const wrapper = new THREE.Group(); wrapper.name = "ZorrillaWrapper"; wrapper.add(gltf.scene); wrapper.scale.set(desiredZorrillaScale, desiredZorrillaScale, desiredZorrillaScale); const box = new THREE.Box3().setFromObject(wrapper); const shiftY = -box.min.y; wrapper.position.set(0, shiftY, 2.5); zorrillaObject = wrapper; scene.add(zorrillaObject); console.log(`Wrapper Zorrilla añadido en Y=${shiftY}`); gltf.scene.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } }); }, xhr => console.log(`Cargando Zorrilla: ${ ( xhr.loaded / xhr.total * 100 ).toFixed(2) }%`), error => { /* ... fallback zorrilla ... */ console.error('¡ERROR AL CARGAR ZORRILLA!', error); const fallbackGeo = new THREE.BoxGeometry(0.8, 1.8, 0.8); const fallbackMat = new THREE.MeshStandardMaterial({color: 0xff0000}); zorrillaObject = new THREE.Mesh(fallbackGeo, fallbackMat); zorrillaObject.position.set(0, 1.8 / 2, 2.5); zorrillaObject.name = "ZorrillaFallback"; zorrillaObject.castShadow = true; zorrillaObject.receiveShadow = true; scene.add(zorrillaObject); });
+    const tombObjectModelPath = 'objeto_tumba.glb'; const desiredTombObjectScale = 0.5;
+    gltfLoader.load( tombObjectModelPath, gltf => { /* ... código carga objeto tumba ... */ console.log("Modelo GLB objeto tumba cargado."); const wrapper = new THREE.Group(); wrapper.name = "TombObjectWrapper"; wrapper.add(gltf.scene); wrapper.scale.set(desiredTombObjectScale, desiredTombObjectScale, desiredTombObjectScale); const box = new THREE.Box3().setFromObject(wrapper); const shiftY = graveTopY - box.min.y; wrapper.position.set(0, shiftY, 0); tombObject = wrapper; scene.add(tombObject); console.log(`Wrapper objeto tumba añadido en Y=${shiftY}`); gltf.scene.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; } }); }, xhr => console.log(`Cargando objeto tumba: ${ ( xhr.loaded / xhr.total * 100 ).toFixed(2) }%`), error => { /* ... fallback objeto tumba ... */ console.error('¡ERROR AL CARGAR OBJETO TUMBA!', error); const fallbackGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.4, 16); const fallbackMat = new THREE.MeshStandardMaterial({color: 0x0000ff}); tombObject = new THREE.Mesh(fallbackGeo, fallbackMat); tombObject.position.set(0, graveTopY + 0.4 / 2, 0); tombObject.name = "TombObjectFallback"; tombObject.castShadow = true; tombObject.receiveShadow = true; scene.add(tombObject); });
+
+    // --- Crear Asistentes ---
+    const numAttendees = 35; const crowdRadius = 18; const innerRadius = 5;
+    for (let i = 0; i < numAttendees; i++) { const attendee = createPerson(); const angle = Math.random() * Math.PI * 2; const radius = innerRadius + Math.random() * (crowdRadius - innerRadius); const x = Math.cos(angle) * radius; const z = Math.sin(angle) * radius; attendee.position.set(x, 0, z); const lookAtX = 0 + (Math.random() - 0.5) * 3; const lookAtZ = 2.5 + (Math.random() - 0.5) * 3; attendee.lookAt(lookAtX, attendee.position.y + 1.6, lookAtZ); scene.add(attendee); }
+
+
+    // --- *** CIPRESES (REINTEGRADOS) *** ---
+    function createCypress() { const height = 8 + Math.random() * 10; const radius = 0.5 + Math.random() * 0.4; const geometry = new THREE.ConeGeometry(radius, height, 12, 1); const material = new THREE.MeshStandardMaterial({ color: 0x224422, roughness: 0.9 }); const cypress = new THREE.Mesh(geometry, material); cypress.castShadow = true; cypress.receiveShadow = true; cypress.position.y = height / 2; return cypress; }
+    const numCypresses = 45; const treeAreaRadius = 80; const treeInnerRadius = 15;
+    for (let i = 0; i < numCypresses; i++) { const cypress = createCypress(); let x, z, validPosition; do { const angle = Math.random() * Math.PI * 2; const radius = treeInnerRadius + Math.random() * (treeAreaRadius - treeInnerRadius); x = Math.cos(angle) * radius; z = Math.sin(angle) * radius; validPosition = (x*x + z*z) > (innerRadius*innerRadius + 25); } while (!validPosition); cypress.position.x = x; cypress.position.z = z; scene.add(cypress); }
+
+
+    // --- *** OTRAS LÁPIDAS (REINTEGRADAS) *** ---
+    function createGravestone() { const width = 0.6 + Math.random() * 0.4; const height = 1 + Math.random() * 1.2; const depth = 0.2 + Math.random() * 0.1; const geometry = new THREE.BoxGeometry(width, height, depth); const material = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.8 }); const gravestone = new THREE.Mesh(geometry, material); gravestone.castShadow = true; gravestone.receiveShadow = true; gravestone.position.y = height / 2; return gravestone; }
+    const numGravestones = 70; const stoneAreaRadius = 75; const stoneInnerRadius = 10;
+    for (let i = 0; i < numGravestones; i++) { const gravestone = createGravestone(); let x, z, validPosition; do { const angle = Math.random() * Math.PI * 2; const radius = stoneInnerRadius + Math.random() * (stoneAreaRadius - stoneInnerRadius); x = Math.cos(angle) * radius; z = Math.sin(angle) * radius; validPosition = (x*x + z*z) > (innerRadius*innerRadius + 9); } while (!validPosition); gravestone.position.x = x; gravestone.position.z = z; gravestone.rotation.y = (Math.random() - 0.5) * 0.5; scene.add(gravestone); }
+
+
+    // --- *** PAREDES DEL CEMENTERIO (REINTEGRADAS) *** ---
+    const wallDistance = 90; const wallLength = 180; const wallHeight = 3.5; const wallDepth = 0.5;
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x888877, roughness: 0.9, metalness: 0.05 }); // Material de la pared
+    const wallGeometry = new THREE.BoxGeometry(wallLength, wallHeight, wallDepth); // Geometría de la pared
+    // Muro frontal (+Z)
+    const wallZpos = new THREE.Mesh(wallGeometry, wallMaterial); wallZpos.position.set(0, wallHeight / 2, wallDistance); wallZpos.castShadow = true; wallZpos.receiveShadow = true; scene.add(wallZpos);
+    // Muro trasero (-Z)
+    const wallZneg = new THREE.Mesh(wallGeometry, wallMaterial); wallZneg.position.set(0, wallHeight / 2, -wallDistance); wallZneg.castShadow = true; wallZneg.receiveShadow = true; scene.add(wallZneg);
+    // Muro derecho (+X)
+    const wallXpos = new THREE.Mesh(wallGeometry, wallMaterial); wallXpos.position.set(wallDistance, wallHeight / 2, 0); wallXpos.rotation.y = Math.PI / 2; wallXpos.castShadow = true; wallXpos.receiveShadow = true; scene.add(wallXpos);
+    // Muro izquierdo (-X)
+    const wallXneg = new THREE.Mesh(wallGeometry, wallMaterial); wallXneg.position.set(-wallDistance, wallHeight / 2, 0); wallXneg.rotation.y = Math.PI / 2; wallXneg.castShadow = true; wallXneg.receiveShadow = true; scene.add(wallXneg);
+
+
+    // --- Interacción (Raycasting y Sonido - SOLO ZORRILLA) ---
+    const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); const zorrillaAudio = document.getElementById('zorrillaAudio');
+    function onPointerDown( event ) { if (!zorrillaObject) return; mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1; mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1; raycaster.setFromCamera( mouse, camera ); const intersects = raycaster.intersectObject( zorrillaObject, true ); if ( intersects.length > 0 ) { console.log(`Clic en: ${zorrillaObject.name}`); if (zorrillaAudio) { zorrillaAudio.currentTime = 0; zorrillaAudio.play().catch(e => console.error("Error audio:", e)); } else { console.error("Audio no encontrado."); } } }
+    renderer.domElement.addEventListener( 'pointerdown', onPointerDown, false );
+
+
+    // --- Bucle de Animación y Redimensionamiento ---
+    function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio( window.devicePixelRatio ); });
+    animate();
+
+</script>
+
+</body>
+</html>
