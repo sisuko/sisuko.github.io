@@ -78,7 +78,7 @@
 
     // 1. Cargar Zorrilla (igual que antes)
     const zorrillaModelPath = 'zorrilla_modelo.glb'; // <-- ¡¡¡ RUTA ZORRILLA !!!
-    const desiredZorrillaScale = 1.0; // <-- Escala Zorrilla
+    const desiredZorrillaScale = 3.0; // <-- Escala Zorrilla
 
     console.log(`Intentando cargar Zorrilla desde: ${zorrillaModelPath}`);
     loader.load( zorrillaModelPath, gltf => {
@@ -102,7 +102,7 @@
 
     // 2. Cargar Objeto sobre la Tumba (NUEVO)
     const tombObjectModelPath = 'objeto_tumba.glb'; // <-- ¡¡¡ RUTA OBJETO TUMBA !!!
-    const desiredTombObjectScale = 0.5; // <-- Escala Objeto Tumba (AJUSTA ESTO)
+    const desiredTombObjectScale = 3.0; // <-- Escala Objeto Tumba (AJUSTA ESTO)
 
     console.log(`Intentando cargar objeto tumba desde: ${tombObjectModelPath}`);
     loader.load( tombObjectModelPath, gltf => {
@@ -116,7 +116,7 @@
         const shiftY = graveTopY - box.min.y; // Y deseado (cima tumba) - Y más bajo del objeto
 
         wrapper.position.set(0, shiftY, 0); // Posicionar en el centro X,Z de la tumba, con Y ajustada
-        // wrapper.rotation.y = Math.PI / 4; // Rotar si se desea
+        wrapper.rotation.y = Math.PI / 4; // Rotar si se desea
 
         tombObject = wrapper; // Asignar el wrapper
         scene.add(tombObject);
