@@ -116,7 +116,7 @@
         const shiftY = graveTopY - box.min.y; // Y deseado (cima tumba) - Y más bajo del objeto
 
         wrapper.position.set(0, shiftY, 0); // Posicionar en el centro X,Z de la tumba, con Y ajustada
-        wrapper.rotation.y = Math.PI / 4; // Rotar si se desea
+        wrapper.rotation.y = Math.PI; // Rotar si se desea
 
         tombObject = wrapper; // Asignar el wrapper
         scene.add(tombObject);
