@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Library Themed Platformer Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2c3e50;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #controls {
+            margin-top: 15px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="controls">
+            Usa las teclas [A]izq [D]der [W]saltar [D]agachar 
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game variables
+        const gravity = 0.5;
+        let score = 0;
+        let gameOver = false;
+        let frameCount = 0;
+        
+        // Load images
+        const images = {};
+        const imageSources = {
+            playerRunRight: "/api/placeholder/128/128",
+            playerRunLeft: "/api/placeholder/128/128",
+            playerJump: "/api/placeholder/64/64",
+            playerIdle: "/api/placeholder/64/64",
+            background: "/api/placeholder/800/400",
+            platform: "/api/placeholder/100/30",
+            bookshelf: "/api/placeholder/100/20",
+            book: "/api/placeholder/64/64",
+            lampLight: "/api/placeholder/120/120",
+            desk: "/api/placeholder/80/40",
+            armchair: "/api/placeholder/100/150"
+        };
+        
+        // Player object
+        const player = {
+            x: 50,
+            y: 200,
+            width: 40,
+            height: 50,
+            speed: 5,
+            velX: 0,
+            velY: 0,
+            jumping: false,
+            grounded: false,
+            facingRight: true,
+            frameX: 0,
+            frameY: 0,
+            frameCount: 0,
+            frameDelay: 5,
+            spriteWidth: 32,
+            spriteHeight: 32
+        };
+        
+        // Background elements
+        const lightSources = [
+            { x: 150, y: 80, type: 'lampLight', intensity: 0.2 },
+            { x: 400, y: 60, type: 'lampLight', intensity: 0.3 },
+            { x: 650, y: 100, type: 'lampLight', intensity: 0.25 }
+        ];
+        
+        const decorations = [
+            { x: 150, y: 320, type: 'desk' },
+            { x: 500, y: 250, type: 'desk' },
+            { x: 700, y: 320, type: 'armchair' }
+        ];
+        
+        // Function to generate random platform positions
+        function generateRandomPlatforms() {
+            const newPlatforms = [];
+            
+            // Starting platform
+            newPlatforms.push({ x: 0, y: 350, width: 200, height: 15, type: 'bookshelf' });
+            
+            // Generate other platforms
+            let lastY = 350;
+
+            for (let i = 0; i < 6; i++) {
+                const platformWidth = 100;
+                const randomX = Math.floor(Math.random() * (canvas.width - platformWidth));
+                const minY = 150;
+                const maxY = 300;
+                const minVerticalDistance = 60;
+                
+                let randomY = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+
+                while (Math.abs(randomY - lastY) < minVerticalDistance) {
+                    randomY = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+                }
+
+                // Update lastY for next iteration
+                lastY = randomY;
+                
+                
+                newPlatforms.push({ x: randomX, y: randomY, width: platformWidth, height: 15, type: 'bookshelf' });
+            }
+            
+            return newPlatforms;
+        }
+        
+        // Platforms design (now bookshelves)
+        let platforms = generateRandomPlatforms();
+        
+        function repositionBooks() {
+             // Position books in the middle of the platforms
+             for(let i = 0; i < books.length; i++) {
+                const platform = platforms[i+1];
+                books[i].x = platform.x + platform.width / 2 - books[i].width / 2;
+                books[i].y = platform.y - books[i].height;
+            }
+        }
+
+        // Collectible books
+        function resetBooksPositions() {
+            for (let i = 0; i < books.length; i++) {
+                books[i].collected = false;
+            }
+        }
+        const books = [
+            { x: 280, y: 270, width: 25, height: 20, collected: false, type: 0, frameCount: 0 },
+            { x: 430, y: 220, width: 25, height: 20, collected: false, type: 1, frameCount: 0 },
+            { x: 330, y: 170, width: 25, height: 20, collected: false, type: 2, frameCount: 0 },
+            { x: 180, y: 120, width: 25, height: 20, collected: false, type: 3, frameCount: 0 },
+            { x: 580, y: 270, width: 25, height: 20, collected: false, type: 4, frameCount: 0 }
+        ];
+        repositionBooks();
+        
+        // Particle effects
+        const particles = [];
+        
+        // Controls
+        const keys = {};
+        
+      document.addEventListener("keydown", function(e) {
+          keys[e.key.toLowerCase()] = true;
+        });
+        
+        document.addEventListener("keyup", function(e) {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        //Jump Down
+        document.addEventListener('keydown', function(e) {
+          if (e.key.toLowerCase() === 's') {
+            for (let i = 0; i < platforms.length; i++) {
+                if (player.y + player.height === platforms[i].y) {
+                    player.y += 15;
+                }
+             }
+          }
+        });
+
+        // Add an event listener for the "r" key
+        document.addEventListener("keydown", function(e) {
+            if (e.key.toLowerCase() === "r") { keys["r"] = true; }
+        });
+        
+        // Create placeholder images programmatically:
+        function createPlaceholderImages() {
+            // Player sprites
+            createPlayerSprite();
+            
+            // Background - library
+            const bgCanvas = document.createElement('canvas');
+            bgCanvas.width = 800;
+            bgCanvas.height = 400;
+            const bgCtx = bgCanvas.getContext('2d');
+            
+            // Dark wooden background
+            bgCtx.fillStyle = '#3e2723';
+            bgCtx.fillRect(0, 0, 800, 400);
+            
+            // Library wall - big bookshelf background
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 16; x++) {
+                    // Shelf wood
+                    if (y % 2 === 0) {
+                        bgCtx.fillStyle = '#5d4037';
+                        bgCtx.fillRect(x * 50, y * 50, 50, 10);
+                    }
+                    
+                    // Books on shelves
+                    if (y % 2 === 1) {
+                        // Row of books
+                        for (let i = 0; i < 5; i++) {
+                            const bookColors = ['#f44336', '#4caf50', '#2196f3', '#ffeb3b', '#9c27b0', '#ff9800'];
+                            bgCtx.fillStyle = bookColors[Math.floor(Math.random() * bookColors.length)];
+                            let bookWidth = 6 + Math.random() * 4;
+                            bgCtx.fillRect(x * 50 + i * 10, y * 50, bookWidth, 40);
+                        }
+                    }
+                }
+            }
+            
+            // Dim overlay for ambiance
+            bgCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            bgCtx.fillRect(0, 0, 800, 400);
+            
+            images.background = bgCanvas;
+            
+            // Platform as bookshelf
+            const bookshelfCanvas = document.createElement('canvas');
+            bookshelfCanvas.width = 100;
+            bookshelfCanvas.height = 20;
+            const bookshelfCtx = bookshelfCanvas.getContext('2d');
+            
+            // Shelf wood
+            bookshelfCtx.fillStyle = '#5d4037';
+            bookshelfCtx.fillRect(0, 0, 100, 8);
+            
+            // Books on shelf
+            const shelfColors = ['#f44336', '#4caf50', '#2196f3', '#ffeb3b', '#9c27b0', '#ff9800'];
+            for (let i = 0; i < 10; i++) {
+                bookshelfCtx.fillStyle = shelfColors[Math.floor(Math.random() * shelfColors.length)];
+                let bookWidth = 8 + Math.random() * 2;
+                let bookHeight = 12 + Math.random() * 3;
+                bookshelfCtx.fillRect(i * 10, 8 - bookHeight, bookWidth, bookHeight);
+            }
+            
+            images.bookshelf = bookshelfCanvas;
+            
+            // Books sprite
+            const bookCanvas = document.createElement('canvas');
+            bookCanvas.width = 64;
+            bookCanvas.height = 64;
+            const bookCtx = bookCanvas.getContext('2d');
+            
+            // Create 5 different book styles
+            const bookColors = [
+                '#f44336', // red
+                '#4caf50', // green
+                '#2196f3', // blue
+                '#9c27b0', // purple
+                '#ff9800'  // orange
+            ];
+            
+            for (let i = 0; i < 5; i++) {
+                bookCtx.save();
+                bookCtx.translate(i * 13, 0);
+                
+                // Draw book
+                bookCtx.fillStyle = bookColors[i];
+                bookCtx.fillRect(0, 0, 12, 16);
+                
+                // Book spine details
+                bookCtx.fillStyle = '#f0f0f0';
+                bookCtx.fillRect(5, 2, 2, 12);
+                
+                // Book cover shine
+                bookCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                bookCtx.fillRect(1, 1, 3, 14);
+                
+                bookCtx.restore();
+            }
+            
+            images.book = bookCanvas;
+            
+            // Lamp light
+            const lampLightCanvas = document.createElement('canvas');
+            lampLightCanvas.width = 120;
+            lampLightCanvas.height = 120;
+            const lampLightCtx = lampLightCanvas.getContext('2d');
+            
+            // Create radial gradient for light
+            const gradient = lampLightCtx.createRadialGradient(60, 60, 10, 60, 60, 60);
+            gradient.addColorStop(0, 'rgba(255, 240, 180, 0.7)');
+            gradient.addColorStop(1, 'rgba(255, 240, 180, 0)');
+            
+            lampLightCtx.fillStyle = gradient;
+            lampLightCtx.fillRect(0, 0, 120, 120);
+            
+            // Draw lamp
+            lampLightCtx.fillStyle = '#5d4037';
+            lampLightCtx.fillRect(55, 30, 10, 30);
+            lampLightCtx.fillStyle = '#f5f5f5';
+            lampLightCtx.beginPath();
+            lampLightCtx.arc(60, 30, 15, 0, Math.PI * 2);
+            lampLightCtx.fill();
+            
+            images.lampLight = lampLightCanvas;
+            
+            // Desk
+            const deskCanvas = document.createElement('canvas');
+            deskCanvas.width = 80;
+            deskCanvas.height = 40;
+            const deskCtx = deskCanvas.getContext('2d');
+            
+            deskCtx.fillStyle = '#5d4037';
+            deskCtx.fillRect(5, 20, 70, 5); // desk top
+            deskCtx.fillRect(10, 25, 5, 15); // leg 1
+            deskCtx.fillRect(65, 25, 5, 15); // leg 2
+            
+            // Items on desk
+            deskCtx.fillStyle = '#f5f5f5';
+            deskCtx.fillRect(15, 10, 20, 10); // paper
+            deskCtx.fillStyle = '#3e2723';
+            deskCtx.fillRect(45, 15, 8, 5); // small book
+            deskCtx.fillStyle = '#333333';
+            deskCtx.fillRect(55, 12, 3, 8); // pen
+            
+            images.desk = deskCanvas;
+            
+            // Armchair
+            const armchairCanvas = document.createElement('canvas');
+            armchairCanvas.width = 100;
+            armchairCanvas.height = 150;
+            const armchairCtx = armchairCanvas.getContext('2d');
+            
+            // Chair base
+            armchairCtx.fillStyle = '#795548';
+            armchairCtx.fillRect(20, 90, 60, 20);
+            
+            // Chair back
+            armchairCtx.fillStyle = '#8d6e63';
+            armchairCtx.fillRect(20, 40, 60, 50);
+            
+            // Chair arms
+            armchairCtx.fillStyle = '#8d6e63';
+            armchairCtx.fillRect(10, 70, 10, 30);
+            armchairCtx.fillRect(80, 70, 10, 30);
+            
+            // Chair legs
+            armchairCtx.fillStyle = '#5d4037';
+            armchairCtx.fillRect(25, 110, 10, 20);
+            armchairCtx.fillRect(65, 110, 10, 20);
+            
+            // Cushion details
+            armchairCtx.fillStyle = '#a1887f';
+            armchairCtx.fillRect(25, 90, 50, 3);
+            armchairCtx.fillRect(20, 50, 60, 3);
+            
+            images.armchair = armchairCanvas;
+        }
+        
+        function createPlayerSprite() {
+            // Create player sprites programmatically
+            const idleCanvas = document.createElement('canvas');
+            idleCanvas.width = 64;
+            idleCanvas.height = 64;
+            const idleCtx = idleCanvas.getContext('2d');
+            
+            // Draw idle pose
+            drawPlayerFrame(idleCtx, 0, 0);
+            drawPlayerFrame(idleCtx, 32, 0, 2); // Slightly different pose
+            
+            images.playerIdle = idleCanvas;
+            
+            // Running right
+            const runRightCanvas = document.createElement('canvas');
+            runRightCanvas.width = 128;
+            runRightCanvas.height = 128;
+            const runRightCtx = runRightCanvas.getContext('2d');
+            
+            for (let i = 0; i < 4; i++) {
+                const x = (i % 2) * 32;
+                const y = Math.floor(i / 2) * 32;
+                drawPlayerFrame(runRightCtx, x, y, i);
+            }
+            
+            images.playerRunRight = runRightCanvas;
+            
+            // Running left (mirror of right)
+            const runLeftCanvas = document.createElement('canvas');
+            runLeftCanvas.width = 128;
+            runLeftCanvas.height = 128;
+            const runLeftCtx = runLeftCanvas.getContext('2d');
+            
+            // Copy and flip the run right animation
+            for (let i = 0; i < 4; i++) {
+                const x = (i % 2) * 32;
+                const y = Math.floor(i / 2) * 32;
+                
+                runLeftCtx.save();
+                runLeftCtx.translate(x + 32, y);
+                runLeftCtx.scale(-1, 1);
+                drawPlayerFrame(runLeftCtx, 0, 0, i);
+                runLeftCtx.restore();
+            }
+            
+            images.playerRunLeft = runLeftCanvas;
+            
+            // Jump
+            const jumpCanvas = document.createElement('canvas');
+            jumpCanvas.width = 64;
+            jumpCanvas.height = 64;
+            const jumpCtx = jumpCanvas.getContext('2d');
+            
+            // Draw jump pose (legs tucked)
+            drawPlayerFrame(jumpCtx, 0, 0, 4);
+            
+            images.playerJump = jumpCanvas;
+        }
+        
+        function drawPlayerFrame(ctx, x, y, frameType = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Body - librarian style clothes
+            ctx.fillStyle = '#26a69a'; // teal shirt
+            ctx.fillRect(8, 8, 16, 20);
+            
+            // Head
+            ctx.fillStyle = '#ffccbc';
+            ctx.fillRect(8, 0, 16, 8);
+            
+            // Eyes with glasses
+            ctx.fillStyle = '#263238';
+            ctx.fillRect(10, 3, 3, 2); // left eye
+            ctx.fillRect(19, 3, 3, 2); // right eye
+            
+            // Glasses
+            ctx.strokeStyle = '#9e9e9e';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(9, 2, 5, 3); // left lens
+            ctx.strokeRect(18, 2, 5, 3); // right lens
+            ctx.beginPath();
+            ctx.moveTo(14, 3);
+            ctx.lineTo(18, 3);
+            ctx.stroke(); // bridge
+            
+            // Different leg positions based on frame type
+            ctx.fillStyle = '#607d8b'; // grey pants
+            
+            if (frameType === 0) {
+                // Standing
+                ctx.fillRect(8, 28, 6, 4);
+                ctx.fillRect(18, 28, 6, 4);
+            } else if (frameType === 1) {
+                // Running frame 1
+                ctx.fillRect(6, 28, 6, 4);
+                ctx.fillRect(20, 28, 6, 4);
+            } else if (frameType === 2) {
+                // Idle alternate
+                ctx.fillRect(9, 28, 6, 4);
+                ctx.fillRect(17, 28, 6, 4);
+            } else if (frameType === 3) {
+                // Running frame 2
+                ctx.fillRect(4, 28, 6, 4);
+                ctx.fillRect(22, 28, 6, 4);
+            } else if (frameType === 4) {
+                // Jumping
+                ctx.fillRect(10, 26, 5, 4);
+                ctx.fillRect(17, 26, 5, 4);
+            }
+            
+            // Arms - different positions based on frame
+            ctx.fillStyle = '#ffccbc';
+            if (frameType === 4) {
+                // Jumping - arms up
+                ctx.fillRect(4, 10, 4, 10);
+                ctx.fillRect(24, 10, 4, 10);
+            } else if (frameType % 2 === 1) {
+                // Running frames - arms moving
+                ctx.fillRect(4, 12, 4, 10);
+                ctx.fillRect(24, 14, 4, 10);
+            } else {
+                // Standing/idle
+                ctx.fillRect(4, 13, 4, 10);
+                ctx.fillRect(24, 13, 4, 10);
+            }
+            
+            ctx.restore();
+        }
+        
+        // Create placeholder graphics
+        createPlaceholderImages();
+        
+        // Create particle effect for book collection
+        function createBookParticles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x + 12,
+                    y: y + 10,
+                    size: Math.random() * 4 + 1,
+                    speedX: (Math.random() - 0.5) * 2,
+                    speedY: (Math.random() - 0.5) * 2 - 2,
+                    color: color || '#f0f0f0',
+                    life: 30
+                });
+            }
+        }
+        
+        function restartGame() {
+            gameOver = false;
+            score = 0;
+            player.x = 50;
+            player.y = 300;
+            platforms = generateRandomPlatforms();
+            repositionBooks();
+            resetBooksPositions()
+        }
+        
+        // Game loop
+        function gameLoop() {
+            frameCount++;
+            if (!gameOver) {
+                update();
+            }
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function update() {
+            // Reset grounded
+            player.grounded = false;
+            
+            // Apply gravity
+
+            player.velY += gravity;
+            
+            // Horizontal movement
+            if (keys["ArrowLeft"] || keys["a"]) {
+                if (player.velX > -player.speed) {
+                    player.velX--;
+                }
+                player.facingRight = false;
+            }
+            
+            if (keys["ArrowRight"] || keys["d"]) {
+                if (player.velX < player.speed) {
+                    player.velX++;
+                }
+                player.facingRight = true;
+            }
+            
+            // Animation handling
+            player.frameCount++;
+            if (player.frameCount > player.frameDelay) {
+                player.frameCount = 0;
+                player.frameX = (player.frameX + 1) % 2;
+            }
+            
+            // Apply friction
+            player.velX *= 0.8;
+            
+            // Check for collision with platforms
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
+                
+                // Check for collision
+                if (player.x < p.x + p.width &&
+                    player.x + player.width > p.x &&
+                    player.y < p.y + p.height &&
+                    player.y + player.height > p.y) {
+                    
+                    // Top collision (player is on top of platform)
+                    if (player.y + player.height <= p.y + player.velY + 10) {
+                        player.y = p.y - player.height;
+                        player.velY = 0;
+                        player.grounded = true;
+                        player.jumping = false;
+                    }
+                    // Bottom collision
+                    else if (player.y >= p.y + p.height - player.velY) {
+                        player.y = p.y + p.height;
+                        player.velY = 0;
+                    }
+                    // Left collision
+                    else if (player.x + player.width <= p.x + player.velX + 10) {
+                        player.x = p.x - player.width;
+                        player.velX = 0;
+                    }
+                    // Right collision
+                    else if (player.x >= p.x + p.width - player.velX - 10) {
+                        player.x = p.x + p.width;
+                        player.velX = 0;
+                    }
+                }
+            }
+            
+            // Jump if grounded and W is pressed
+            if (keys["w"] && player.grounded) {
+                player.jumping = true;
+                player.grounded = false;
+                player.velY = -12;
+            }
+            
+            // Apply velocity
+            player.x += player.velX;
+            player.y += player.velY;
+            
+            // Check boundaries
+            if (player.x <= 0) {
+                player.x = 0;
+            }
+            if (player.x >= canvas.width - player.width) {
+                player.x = canvas.width - player.width;
+            }
+            
+            // Game over if player falls off the screen
+            if (player.y > canvas.height) { gameOver = true; }
+            
+            // Check for book collection
+            for (let i = 0; i < books.length; i++) {
+                
+                //Game Win
+                if(score >= 50){
+                    gameOver = true;
+                    break;
+                }
+                
+                //Collect book
+                if (!books[i].collected && 
+                    player.x < books[i].x + books[i].width &&
+                    player.x + player.width > books[i].x &&
+                    player.y < books[i].y + books[i].height &&
+                    player.y + player.height > books[i].y) {
+                    
+                    books[i].collected = true;
+                    const bookColors = ['#f44336', '#4caf50', '#2196f3', '#9c27b0', '#ff9800'];
+                    createBookParticles(books[i].x, books[i].y, bookColors[books[i].type]);
+                    score += 10;
+                }
+            }
+            
+            // Animate books (subtle floating effect)
+            for (let i = 0; i < books.length; i++) {
+                if (!books[i].collected) {
+                    books[i].frameCount++;
+                    if (books[i].frameCount > 30) {
+                        books[i].frameCount = 0;
+                    }
+                    // Subtle floating motion
+                    books[i].y += Math.sin(frameCount / 20) * 0.1;
+                }
+            }
+            
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].speedX;
+                particles[i].y += particles[i].speedY;
+                particles[i].speedY += 0.05;
+                particles[i].life--;
+                
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function render() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            ctx.drawImage(images.background, 0, 0);
+            
+            // Draw lamp lights for atmosphere
+            for (let i = 0; i < lightSources.length; i++) {
+                ctx.globalAlpha = lightSources[i].intensity;
+                ctx.drawImage(images[lightSources[i].type], 
+                    lightSources[i].x - 60, 
+                    lightSources[i].y - 60);
+            }
+            ctx.globalAlpha = 1;
+            
+            // Draw decorations behind platforms
+            for (let i = 0; i < decorations.length; i++) {
+                const dec = decorations[i];
+                if (dec.type === 'armchair') {
+                    ctx.drawImage(images[dec.type], dec.x, dec.y - images[dec.type].height + 30);
+                }
+            }
+            
+            // Draw platforms (bookshelves)
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
+                ctx.drawImage(images[p.type], p.x, p.y, p.width, p.height + 5);
+            }
+            
+            // Draw decorations in front of platforms
+            for (let i = 0; i < decorations.length; i++) {
+                const dec = decorations[i];
+                if (dec.type === 'desk') {
+                    ctx.drawImage(images[dec.type], dec.x, dec.y);
+                }
+            }
+            
+            // Draw books
+            for (let i = 0; i < books.length; i++) {
+                if (!books[i].collected) {
+                    // Draw from sprite sheet based on book type
+                    const bookX = books[i].type * 13;
+                    ctx.drawImage(
+                        images.book, 
+                        bookX, 0, 12, 16, 
+                        books[i].x, books[i].y, books[i].width, books[i].height
+                    );
+                }
+            }
+            
+            // Draw player
+            if (player.jumping) {
+                ctx.drawImage(
+                    images.playerJump, 
+                    0, 0, 32, 32, 
+                    player.x, player.y, player.width, player.height
+                );
+            } else if (Math.abs(player.velX) > 0.5) {
+                const spriteX = player.frameX * 32;
+                const spriteY = player.frameY * 32;
+                if (player.facingRight) {
+                    ctx.drawImage(
+                        images.playerRunRight, 
+                        spriteX, spriteY, 32, 32, 
+                        player.x, player.y, player.width, player.height
+                    );
+                } else {
+                    ctx.drawImage(
+                        images.playerRunLeft, 
+                        spriteX, spriteY, 32, 32, 
+                        player.x, player.y, player.width, player.height
+                    );
+                }
+            } else {
+                // Idle animation
+                const spriteX = (frameCount % 40 > 20) ? 0 : 32;
+                ctx.drawImage(
+                    images.playerIdle, 
+                    spriteX, 0, 32, 32, 
+                    player.x, player.y, player.width, player.height
+                );
+            }
+            
+            // Draw particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            
+            // Draw UI
+            // Score panel (now a book count)
+            ctx.fillStyle = 'rgba(80, 50, 20, 0.8)';
+            ctx.fillRect(10, 10, 150, 30);
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText('Libros: ' + (score / 10) + '/5', 20, 30,120);
+
+            // Draw game over message
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#FFF';
+                ctx.font = 'bold 40px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText((score >= 50) ? '¡Ganaste!' : '¡Perdiste!', canvas.width/2, canvas.height/2 - 20);
+                ctx.font = '20px Arial';
+                ctx.fillText('Libros conseguidos: ' + (score / 10) + '/5', canvas.width/2, canvas.height/2 + 20);
+                ctx.fillText('Presiona R para reiniciar ', canvas.width/2, canvas.height/2 + 50);
+                if (keys["r"]){
+                     restartGame();
+                }
+            }
+        }
+        
+        // Start the game loop
+        gameLoop();
+    </script>
+</body>
+</html>
